@@ -91,12 +91,32 @@ export const createRecord = async (req, res) => {
   }
 };
 
-// Get a single record by ID
+// // Get a single record by ID
+// export const getRecordById = async (req, res) => {
+//   try {
+//     const record = await Record.findById(req.params.id).lean();
+//     if (!record) return res.status(404).json({ error: 'Record not found' });
+//     res.json(record);
+//   } catch (err) {
+//     res.status(500).json({ error: err.message });
+//   }
+// };
+// Get a single record by ID and fetch all records with the same email address
 export const getRecordById = async (req, res) => {
   try {
+    // Fetch the record by ID
     const record = await Record.findById(req.params.id).lean();
-    if (!record) return res.status(404).json({ error: 'Record not found' });
-    res.json(record);
+
+    // Check if the record exists
+    if (!record) {
+      return res.status(404).json({ error: 'Record not found' });
+    }
+
+    // Fetch all records with the same email address
+    const sameEmailRecords = await Record.find({ Email: record.Email }).lean();
+
+    // Return the record and records with the same email
+    res.json({ record, sameEmailRecords });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
