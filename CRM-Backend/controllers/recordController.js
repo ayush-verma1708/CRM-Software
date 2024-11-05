@@ -15,6 +15,68 @@ const recordSchema = Joi.object({
 });
 
 // Fetch paginated and filtered records
+// export const getRecords = async (req, res) => {
+//   const page = parseInt(req.query.page) || 1;
+//   const limit = parseInt(req.query.limit) || 10;
+//   const search = req.query.search || '';
+//   const minPrice = parseFloat(req.query.minPrice);
+//   const maxPrice = parseFloat(req.query.maxPrice);
+
+//   try {
+//     const user = await User.find({
+//       $or: [
+//         { Model_Type: { $regex: search, $options: 'i' } },
+//         { Stage_Name: { $regex: search, $options: 'i' } },
+//         { Model_Insta_Link: { $regex: search, $options: 'i' } },
+//         { Email_Address: { $regex: search, $options: 'i' } },
+//         { Photographer_Insta_Link: { $regex: search, $options: 'i' } },
+//         { Mua_Stage_Name: { $regex: search, $options: 'i' } },
+//         { Mua_Insta_link: { $regex: search, $options: 'i' } },
+//         { Phone_Number_2: { $regex: search, $options: 'i' } },
+//         { Country: { $regex: search, $options: 'i' } },
+//       ],
+//     });
+//     const userEmail = user;
+//     const skip = (page - 1) * limit;
+
+//     // Create a dynamic filter to apply search across all string fields
+//     const filter = {
+//       $or: Object.keys(Record.schema.paths)
+//         .filter((key) => Record.schema.paths[key].instance === 'String') // Only include String fields
+//         .map((key) => ({
+//           [key]: { $regex: search, $options: 'i' },
+//         })),
+//     };
+
+//     // Add price range filtering
+//     if (!isNaN(minPrice) && !isNaN(maxPrice)) {
+//       filter.Amount = { $gte: minPrice, $lte: maxPrice };
+//     } else if (!isNaN(minPrice)) {
+//       filter.Amount = { $gte: minPrice };
+//     } else if (!isNaN(maxPrice)) {
+//       filter.Amount = { $lte: maxPrice };
+//     }
+
+//     // Fetch records with pagination and the constructed filter
+//     const records = await Record.find(filter).skip(skip).limit(limit).lean();
+//     const totalRecords = await Record.countDocuments(filter);
+
+//     res.json({
+//       totalRecords,
+//       page,
+//       totalPages: Math.ceil(totalRecords / limit),
+//       records: records.map((record, i) => {
+//         return {
+//           ...record,
+//           user_info: userEmail[i],
+//         };
+//       }),
+//     });
+//   } catch (err) {
+//     res.status(500).json({ error: `Error retrieving records: ${err.message}` });
+//   }
+// };
+
 export const getRecords = async (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
@@ -23,20 +85,6 @@ export const getRecords = async (req, res) => {
   const maxPrice = parseFloat(req.query.maxPrice);
 
   try {
-    const user = await User.find({
-      $or: [
-        { Model_Type: { $regex: search, $options: 'i' } },
-        { Stage_Name: { $regex: search, $options: 'i' } },
-        { Model_Insta_Link: { $regex: search, $options: 'i' } },
-        { Email_Address: { $regex: search, $options: 'i' } },
-        { Photographer_Insta_Link: { $regex: search, $options: 'i' } },
-        { Mua_Stage_Name: { $regex: search, $options: 'i' } },
-        { Mua_Insta_link: { $regex: search, $options: 'i' } },
-        { Phone_Number_2: { $regex: search, $options: 'i' } },
-        { Country: { $regex: search, $options: 'i' } },
-      ],
-    });
-    const userEmail = user;
     const skip = (page - 1) * limit;
 
     // Create a dynamic filter to apply search across all string fields
@@ -61,22 +109,40 @@ export const getRecords = async (req, res) => {
     const records = await Record.find(filter).skip(skip).limit(limit).lean();
     const totalRecords = await Record.countDocuments(filter);
 
+    // Extract unique email addresses from records
+    const emailAddresses = records
+      .map((record) => record.Email)
+      .filter(Boolean); // Filter out any falsy values
+
+    // Fetch user information based on email addresses
+    const users = await User.find({
+      Email_Address: { $in: emailAddresses },
+    });
+
+    // Create a mapping of users for quick access
+    const userMap = {};
+    users.forEach((user) => {
+      userMap[user.Email_Address] = user; // Use email as the key
+    });
+
+    // Combine records with user information
+    const enrichedRecords = records.map((record) => {
+      return {
+        ...record,
+        user_info: userMap[record.Email] || null, // Match based on email
+      };
+    });
+
     res.json({
       totalRecords,
       page,
       totalPages: Math.ceil(totalRecords / limit),
-      records: records.map((record, i) => {
-        return {
-          ...record,
-          user_info: userEmail[i],
-        };
-      }),
+      records: enrichedRecords,
     });
   } catch (err) {
     res.status(500).json({ error: `Error retrieving records: ${err.message}` });
   }
 };
-
 // Create a new record
 export const createRecord = async (req, res) => {
   const { error } = recordSchema.validate(req.body);

@@ -35,8 +35,10 @@ export const importData = async (filePath) => {
       Status: record['Status'],
       Payment_Type: record['Payment_Type'],
       Payment_Method: record['Payment_Method'],
-      First_Name: record['First_Name'],
-      Last_Name: record['Last_Name'],
+      // First_Name: record['First_Name'],
+      // Last_Name: record['Last_Name'],
+      Full_Name: `${record['First_Name']} ${record['Last_Name']}`, // Combine First_Name and Last_Name
+
       Country_Code: record['Country_Code'],
       Email: record['Email'],
       Phone: record['Phone'],
