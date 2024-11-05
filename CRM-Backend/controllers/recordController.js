@@ -77,12 +77,79 @@ const recordSchema = Joi.object({
 //   }
 // };
 
+// export const getRecords = async (req, res) => {
+//   const page = parseInt(req.query.page) || 1;
+//   const limit = parseInt(req.query.limit) || 10;
+//   const search = req.query.search || '';
+//   const minPrice = parseFloat(req.query.minPrice);
+//   const maxPrice = parseFloat(req.query.maxPrice);
+
+//   try {
+//     const skip = (page - 1) * limit;
+
+//     // Create a dynamic filter to apply search across all string fields
+//     const filter = {
+//       $or: Object.keys(Record.schema.paths)
+//         .filter((key) => Record.schema.paths[key].instance === 'String') // Only include String fields
+//         .map((key) => ({
+//           [key]: { $regex: search, $options: 'i' },
+//         })),
+//     };
+
+//     // Add price range filtering
+//     if (!isNaN(minPrice) && !isNaN(maxPrice)) {
+//       filter.Amount = { $gte: minPrice, $lte: maxPrice };
+//     } else if (!isNaN(minPrice)) {
+//       filter.Amount = { $gte: minPrice };
+//     } else if (!isNaN(maxPrice)) {
+//       filter.Amount = { $lte: maxPrice };
+//     }
+
+//     // Fetch records with pagination and the constructed filter
+//     const records = await Record.find(filter).skip(skip).limit(limit).lean();
+//     const totalRecords = await Record.countDocuments(filter);
+
+//     // Extract unique email addresses from records
+//     const emailAddresses = records
+//       .map((record) => record.Email)
+//       .filter(Boolean); // Filter out any falsy values
+
+//     // Fetch user information based on email addresses
+//     const users = await User.find({
+//       Email_Address: { $in: emailAddresses },
+//     });
+
+//     // Create a mapping of users for quick access
+//     const userMap = {};
+//     users.forEach((user) => {
+//       userMap[user.Email_Address] = user; // Use email as the key
+//     });
+
+//     // Combine records with user information
+//     const enrichedRecords = records.map((record) => {
+//       return {
+//         ...record,
+//         user_info: userMap[record.Email] || null, // Match based on email
+//       };
+//     });
+
+//     res.json({
+//       totalRecords,
+//       page,
+//       totalPages: Math.ceil(totalRecords / limit),
+//       records: enrichedRecords,
+//     });
+//   } catch (err) {
+//     res.status(500).json({ error: `Error retrieving records: ${err.message}` });
+//   }
+// };
 export const getRecords = async (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
   const search = req.query.search || '';
   const minPrice = parseFloat(req.query.minPrice);
   const maxPrice = parseFloat(req.query.maxPrice);
+  const magazineName = req.query.magazine || ''; // Get magazine name from query parameters
 
   try {
     const skip = (page - 1) * limit;
@@ -94,7 +161,13 @@ export const getRecords = async (req, res) => {
         .map((key) => ({
           [key]: { $regex: search, $options: 'i' },
         })),
+      Full_Name: { $ne: 'undefined undefined' }, // Exclude records with Full_Name as 'undefined undefined'
     };
+
+    // Add magazine filter if specified
+    if (magazineName) {
+      filter.Magazine = { $regex: magazineName, $options: 'i' }; // Assuming 'Magazine' is the field in your schema
+    }
 
     // Add price range filtering
     if (!isNaN(minPrice) && !isNaN(maxPrice)) {
@@ -143,6 +216,75 @@ export const getRecords = async (req, res) => {
     res.status(500).json({ error: `Error retrieving records: ${err.message}` });
   }
 };
+
+// export const getRecords = async (req, res) => {
+//   const page = parseInt(req.query.page) || 1;
+//   const limit = parseInt(req.query.limit) || 10;
+//   const search = req.query.search || '';
+//   const minPrice = parseFloat(req.query.minPrice);
+//   const maxPrice = parseFloat(req.query.maxPrice);
+
+//   try {
+//     const skip = (page - 1) * limit;
+
+//     // Create a dynamic filter to apply search across all string fields
+//     const filter = {
+//       $or: Object.keys(Record.schema.paths)
+//         .filter((key) => Record.schema.paths[key].instance === 'String') // Only include String fields
+//         .map((key) => ({
+//           [key]: { $regex: search, $options: 'i' },
+//         })),
+//       Full_Name: { $ne: 'undefined undefined' }, // Exclude records with Full_Name as 'undefined undefined'
+//     };
+
+//     // Add price range filtering
+//     if (!isNaN(minPrice) && !isNaN(maxPrice)) {
+//       filter.Amount = { $gte: minPrice, $lte: maxPrice };
+//     } else if (!isNaN(minPrice)) {
+//       filter.Amount = { $gte: minPrice };
+//     } else if (!isNaN(maxPrice)) {
+//       filter.Amount = { $lte: maxPrice };
+//     }
+
+//     // Fetch records with pagination and the constructed filter
+//     const records = await Record.find(filter).skip(skip).limit(limit).lean();
+//     const totalRecords = await Record.countDocuments(filter);
+
+//     // Extract unique email addresses from records
+//     const emailAddresses = records
+//       .map((record) => record.Email)
+//       .filter(Boolean); // Filter out any falsy values
+
+//     // Fetch user information based on email addresses
+//     const users = await User.find({
+//       Email_Address: { $in: emailAddresses },
+//     });
+
+//     // Create a mapping of users for quick access
+//     const userMap = {};
+//     users.forEach((user) => {
+//       userMap[user.Email_Address] = user; // Use email as the key
+//     });
+
+//     // Combine records with user information
+//     const enrichedRecords = records.map((record) => {
+//       return {
+//         ...record,
+//         user_info: userMap[record.Email] || null, // Match based on email
+//       };
+//     });
+
+//     res.json({
+//       totalRecords,
+//       page,
+//       totalPages: Math.ceil(totalRecords / limit),
+//       records: enrichedRecords,
+//     });
+//   } catch (err) {
+//     res.status(500).json({ error: `Error retrieving records: ${err.message}` });
+//   }
+// };
+
 // Create a new record
 export const createRecord = async (req, res) => {
   const { error } = recordSchema.validate(req.body);
