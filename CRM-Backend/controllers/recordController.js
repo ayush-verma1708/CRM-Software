@@ -60,23 +60,18 @@ export const getRecords = async (req, res) => {
 
     const fullNames = records.map((record) => record.Full_Name).filter(Boolean); // Filter out any falsy values
 
-    // // Fetch user information based on email addresses
-    // const users = await User.find({
-    //   Email_Address: { $in: emailAddresses },
-    // });
-
     // Fetch user information based on email addresses and full names
     const users = await User.find({
       $or: [
         { Email_Address: { $in: emailAddresses } },
-        { Mua_Stage_Name: { $in: fullNames } },
+        { Stage_Name: { $in: fullNames } },
       ],
     });
 
     const userMap = {};
     users.forEach((user) => {
       if (user.Email_Address) userMap[user.Email_Address] = user; // Match by email
-      if (user.Mua_Stage_Name) userMap[user.Mua_Stage_Name] = user; // Match by stage name
+      if (user.Stage_Name) userMap[user.Stage_Name] = user; // Match by stage name
     });
     // Combine records with user information
     const enrichedRecords = records.map((record) => {
